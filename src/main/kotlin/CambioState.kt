@@ -1,4 +1,4 @@
-import KnownCard.*
+import Card.Known.*
 
 /**
  *
@@ -7,8 +7,8 @@ class CambioState(
     numPlayers: Int,
     firstPlayer: Int,
     jokers: Boolean,
-    bottomLeftCard: KnownCard,
-    bottomRightCard: KnownCard
+    bottomLeftCard: Card.Known,
+    bottomRightCard: Card.Known
 ) {
     /**
      * The turn counter.
@@ -19,7 +19,7 @@ class CambioState(
      * Face-down cards whose values are unknown to us. This includes all cards in the draw pile and any players'
      * cards we haven't seen. Once we see a card, it is moved to [playerCards].
      */
-    val unseenCards: Map<KnownCard, Int> = mapOf(
+    val unseenCards: Map<Card.Known, Int> = mapOf(
         ACE to 4, TWO to 4, THREE to 4, FOUR to 4, FIVE to 4,
         SIX to 4, SEVEN to 4, EIGHT to 4, NINE to 4, TEN to 4,
         JACK to 4, QUEEN to 4, BLACK_KING to 2, RED_KING to 2,
@@ -29,7 +29,7 @@ class CambioState(
     /**
      * Cards in the discard pile.
      */
-    val discardedCards: Map<KnownCard, Int> = mapOf(
+    val discardedCards: Map<Card.Known, Int> = mapOf(
         ACE to 0, TWO to 0,
         THREE to 0,
         FOUR to 0,
@@ -57,6 +57,6 @@ class CambioState(
      *
      * Use the methods of [CardGrid] to modify players' cards.
      */
-    val playerCards = arrayOf(CardGrid(listOf(UnknownCard(), UnknownCard(), bottomLeftCard, bottomRightCard))) +
+    val playerCards = arrayOf(CardGrid(listOf(Card.Unknown(), Card.Unknown(), bottomLeftCard, bottomRightCard))) +
             Array(numPlayers - 1) { CardGrid() }
 }
