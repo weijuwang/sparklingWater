@@ -9,7 +9,17 @@ object Card {
      *
      * An unknown card, when valid, is always represented as [Unknown].
      */
-    enum class Known(val abbreviation: String, val points: Int) : PossiblyUnknown {
+    enum class Known(
+        /**
+         * A short string representing the card.
+         */
+        val abbreviation: String,
+
+        /**
+         * The number of points the card is worth.
+         */
+        val points: Int
+    ) : PossiblyUnknown {
         ACE("A", 1),
         TWO("2", 2),
         THREE("3", 3),
