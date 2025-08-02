@@ -20,7 +20,7 @@
  * which cards are which indices. A possible solution is to ask players to keep their cards in a row, but this goes
  * against how the game is traditionally played even though it does not actually affect gameplay.
  */
-class CardGrid(private val cards: List<Card.PossiblyUnknown> = List(4) { Card.Unknown() }) {
+class CardGrid(private val cards: List<Card.MaybeKnown> = List(4) { Card.Unknown() }) {
     /**
      * Accesses the card at [index].
      */
@@ -38,19 +38,19 @@ class CardGrid(private val cards: List<Card.PossiblyUnknown> = List(4) { Card.Un
     /**
      * Returns this grid with [newCard] inserted at [index]. Cards at higher indices are moved over to fit.
      */
-    fun withCardInsertedAt(index: Int, newCard: Card.PossiblyUnknown) = CardGrid(
+    fun withCardInsertedAt(index: Int, newCard: Card.MaybeKnown) = CardGrid(
         cards.take(index) + newCard + cards.takeLast(cards.size - index)
     )
 
     /**
      * Returns this grid with [newCard] added to the end.
      */
-    fun withCardAppended(newCard: Card.PossiblyUnknown) = CardGrid(cards + newCard)
+    fun withCardAppended(newCard: Card.MaybeKnown) = CardGrid(cards + newCard)
 
     /**
      * Returns this grid after having seen a card. This will override whatever value was there before.
      */
-    fun withCardPeeked(seenCardIndex: Int, seenCard: Card.PossiblyUnknown) = CardGrid(
+    fun withCardPeeked(seenCardIndex: Int, seenCard: Card.MaybeKnown) = CardGrid(
         cards.mapIndexed { i, originalCard ->
             if (i == seenCardIndex) seenCard else originalCard
         }

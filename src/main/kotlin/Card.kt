@@ -2,7 +2,7 @@ object Card {
     /**
      * A face-down card that we may or may not know. Unknown cards are [Unknown]s; known cards are [Known]s.
      */
-    interface PossiblyUnknown
+    interface MaybeKnown
 
     /**
      * A card and its associated properties.
@@ -19,7 +19,7 @@ object Card {
          * The number of points the card is worth.
          */
         val points: Int
-    ) : PossiblyUnknown {
+    ) : MaybeKnown {
         ACE("A", 1),
         TWO("2", 2),
         THREE("3", 3),
@@ -40,5 +40,5 @@ object Card {
     /**
      * An unknown card.
      */
-    class Unknown : PossiblyUnknown
+    class Unknown : MaybeKnown
 }
