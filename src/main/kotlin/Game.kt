@@ -1,7 +1,7 @@
 import Card.Known.*
 
 /**
- *
+ * TODO Reset draw pile when empty
  */
 interface Game {
     /**
@@ -130,11 +130,15 @@ interface Game {
         override val numPlayers = game.numPlayers
         override var turn = game.turn
         override val discardPile = game.discardPile
+            // Copy
+            .toMutableList()
 
         /**
          * 
          */
         val drawPile = game.unseenCards
+            // Copy
+            .toMutableList()
 
         /**
          * 
@@ -149,7 +153,6 @@ interface Game {
         override var state = game.state
         override val actionHistory = game.actionHistory
             // Copy
-            .map { it }
             .toMutableList()
 
         /**
