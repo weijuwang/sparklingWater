@@ -44,8 +44,6 @@ enum class State(val stickable: Boolean = false) {
 
     /**
      * The end of a turn, after a discard or swap has been done and all special actions resolved.
-     *
-     * Legal actions: [EndTurn], sticking actions when available
      */
     TURN_END(stickable=true),
 
