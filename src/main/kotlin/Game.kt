@@ -18,7 +18,7 @@ interface Game {
      * Cards in the discard pile.
      */
     val discardPile: MutableList<Card.Known>
-    
+
     /**
      * The last drawn card.
      */
@@ -53,7 +53,7 @@ interface Game {
         else
             turn + 1
     }
-    
+
     /**
      *
      */
@@ -117,13 +117,9 @@ interface Game {
             ) + Array(numPlayers - 1) { MutableList(4) { Card.Unknown() } }
 
         override var drawnCard: Card.MaybeKnown = Card.Unknown()
-        
         override var cambioCaller: Int? = null
-
         override var stuck = false
-        
         override var state = State.TURN_BEGIN
-
         override val actionHistory = mutableListOf<Action>()
     }
 
@@ -146,7 +142,7 @@ interface Game {
         val playerCards = game.playerCards.map { it.map { card ->
             card as? Card.Known ?: drawRandom()
         }.toMutableList() }
-        
+
         override var drawnCard = game.drawnCard
         override var cambioCaller = game.cambioCaller
         override var stuck = game.stuck
