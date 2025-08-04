@@ -72,7 +72,7 @@ interface Action {
     /**
      *
      */
-    class DrawOther(val card: Card.MaybeKnown) : NonCardRevealing {
+    object DrawOther : NonCardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo): State {
             --game.drawPileSize
             game.drawnCard = Card.Unknown()
@@ -87,7 +87,7 @@ interface Action {
     /**
      *
      */
-    class DiscardSelf : NonCardRevealing {
+    object DiscardSelf : NonCardRevealing {
         private fun applyUniqueEffects(game: Game) =
             (game.drawnCard as Card.Known).let {
                 game.discardPile.add(it)
@@ -97,7 +97,7 @@ interface Action {
                     NINE, TEN               -> AFTER_DISCARD_910
                     JACK, QUEEN, RED_KING   -> AFTER_DISCARD_FACE
                     BLACK_KING              -> AFTER_DISCARD_BLACK_KING
-                    else                    -> AFTER_DISCARD_ORDINARY
+                    else                    -> TURN_END
                 }
             }
 
@@ -108,7 +108,7 @@ interface Action {
     /**
      *
      */
-    class DiscardOther : CardRevealing {
+    object DiscardOther : CardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
             game.drawnCard = cardRevealed
             game.discardPile.add(cardRevealed)
@@ -118,7 +118,7 @@ interface Action {
                 NINE, TEN -> AFTER_DISCARD_910
                 JACK, QUEEN, RED_KING -> AFTER_DISCARD_FACE
                 BLACK_KING -> AFTER_DISCARD_BLACK_KING
-                else -> AFTER_DISCARD_ORDINARY
+                else -> TURN_END
             }
         }
         override fun applyUniqueEffects(game: Game.Determinized): State {
@@ -130,7 +130,7 @@ interface Action {
                     NINE, TEN -> AFTER_DISCARD_910
                     JACK, QUEEN, RED_KING -> AFTER_DISCARD_FACE
                     BLACK_KING -> AFTER_DISCARD_BLACK_KING
-                    else -> AFTER_DISCARD_ORDINARY
+                    else -> TURN_END
                 }
             }
         }
@@ -238,19 +238,61 @@ interface Action {
     /**
      *
      */
-    class Stick(val stickPlayer: Int, val player: Int, val index: Int, val giveAwayIndex: Int) : CardRevealing {
+    class Stick(val player: Int, val index: Int) : CardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
-            TODO("Not yet implemented")
+            // TODO this card might not be what the user claims it is
+            game.playerCards[player].removeAt(index)
+
+            game.discardPile.add(cardRevealed)
+
+            TODO()
         }
         override fun applyUniqueEffects(game: Game.Determinized): State {
-            TODO("Not yet implemented")
+            val stuckCard = game.playerCards[player].removeAt(index)
+
+            // Wrong stick
+            if (stuckCard != game.discardPile.last()) {
+                // Re-insert card
+                game.playerCards[player].add(index, stuckCard)
+
+                // TODO Have stickPlayer draw a card
+            }
+
+            TODO()
         }
     }
 
     /**
      *
      */
-    class Cambio : NonCardRevealing {
+    class StickAndGiveAway(val stickPlayer: Int, val player: Int, val index: Int, val giveAwayIndex: Int) : CardRevealing {
+        override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
+            // TODO this card might not be what the user claims it is
+            game.playerCards[player].removeAt(index)
+
+            game.discardPile.add(cardRevealed)
+
+            TODO()
+        }
+        override fun applyUniqueEffects(game: Game.Determinized): State {
+            val stuckCard = game.playerCards[player].removeAt(index)
+
+            // Wrong stick
+            if (stuckCard != game.discardPile.last()) {
+                // Re-insert card
+                game.playerCards[player].add(index, stuckCard)
+
+                // TODO Have stickPlayer draw a card
+            }
+
+            TODO()
+        }
+    }
+
+    /**
+     *
+     */
+    object Cambio : NonCardRevealing {
         private fun applyUniqueEffects(game: Game): State {
             game.cambioCaller = game.turn
             game.incTurn()
@@ -263,7 +305,7 @@ interface Action {
     /**
      *
      */
-    class EndTurn : NonCardRevealing {
+    object EndTurn : NonCardRevealing {
         private fun applyUniqueEffects(game: Game): State {
             game.stuck = false
             game.incTurn()
@@ -275,5 +317,12 @@ interface Action {
 
         override fun applyUniqueEffects(game: Game.PartialInfo) = applyUniqueEffects(game as Game)
         override fun applyUniqueEffects(game: Game.Determinized) = applyUniqueEffects(game as Game)
+    }
+
+    object SkipAction : NonCardRevealing {
+        override fun applyUniqueEffects(game: Game.PartialInfo) =
+            TURN_END
+        override fun applyUniqueEffects(game: Game.Determinized) =
+            TURN_END
     }
 }

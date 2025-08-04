@@ -13,11 +13,6 @@ enum class State(val stickable: Boolean = false) {
     AFTER_DRAW,
 
     /**
-     * The state after discarding a card that does not have a special action.
-     */
-    AFTER_DISCARD_ORDINARY(stickable=true),
-
-    /**
      * The state after discarding a 7 or 8.
      */
     AFTER_DISCARD_78(stickable=true),
