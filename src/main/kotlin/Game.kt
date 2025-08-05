@@ -133,6 +133,11 @@ interface Game {
 
     /**
      * A determinized game state with all cards known.
+     *
+     * Given an actual [game], the constructor will populate unknown cards with possible values. Therefore, a
+     * [Determinized] game represents one possible perfect-information state of the game represented by [game].
+     *
+     * @param game The actual game from which to initialize a hypothetical state.
      */
     class Determinized(game: PartialInfo) : Game {
         override val numPlayers = game.numPlayers
@@ -143,9 +148,11 @@ interface Game {
 
         /**
          * List of cards in the draw deck.
-         * TODO use .shuffle()
+         *
+         * Use [draw] to draw a card.
          */
         val drawPile = game.unseenCards
+            .shuffled()
             // Copy
             .toMutableList()
 
@@ -153,7 +160,7 @@ interface Game {
          * The cards that each player has.
          */
         val playerCards = game.playerCardInfo.map { it.map { card ->
-            card as? Card.Known ?: drawRandom()
+            card as? Card.Known ?: drawPile.removeLast()
         }.toMutableList() }
 
         override var drawnCard = game.drawnCard
@@ -165,9 +172,9 @@ interface Game {
             .toMutableList()
 
         /**
-         * Draws a random card and removes it from the [drawPile].
+         * Draws a card from the draw pile, assuming it has already been shuffled.
          */
-        fun drawRandom() = drawPile.removeAt((0..<drawPile.size).random())
+        fun draw() = drawPile.removeLast()
 
         /**
          * Returns all legal actions.

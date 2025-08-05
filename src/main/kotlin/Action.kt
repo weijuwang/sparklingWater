@@ -74,7 +74,7 @@ interface Action {
             return AFTER_DRAW
         }
         override fun applyUniqueEffects(game: Game.Determinized): State {
-            game.drawnCard = game.drawRandom()
+            game.drawnCard = game.draw()
             return AFTER_DRAW
         }
     }
@@ -89,7 +89,7 @@ interface Action {
             return AFTER_DRAW
         }
         override fun applyUniqueEffects(game: Game.Determinized): State {
-            game.drawnCard = game.drawRandom()
+            game.drawnCard = game.draw()
             return AFTER_DRAW
         }
     }
