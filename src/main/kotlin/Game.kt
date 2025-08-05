@@ -2,6 +2,8 @@ import Card.Known.*
 
 /**
  * TODO Reset draw pile when empty
+ *
+ * Represents the state of a Cambio game.
  */
 interface Game {
     /**
@@ -25,27 +27,27 @@ interface Game {
     var drawnCard: Card.MaybeKnown
 
     /**
-     * 
+     * The player who called Cambio, if any.
      */
     var cambioCaller: Int?
 
     /**
-     * 
+     * `true` if the previously discarded card has been stuck.
      */
     var stuck: Boolean
 
     /**
-     * 
+     * An enum indicating the state of the game. See [State] for more.
      */
     var state: State
 
     /**
-     * The list of actions that have been made in this game.
+     * The list of [Action]s that have been made in this game.
      */
     val actionHistory: MutableList<Action>
 
     /**
-     * Increments the turn.
+     * Increments the turn, overflowing back to 0 if necessary.
      */
     fun incTurn() {
         turn = if (turn == numPlayers - 1)
@@ -55,7 +57,13 @@ interface Game {
     }
 
     /**
+     * A game from player 0's perspective. Cards unknown to that player are represented as [Card.Unknown].
      *
+     * @param numPlayers The number of players in the game.
+     * @param firstPlayer The index of the first player.
+     * @param jokers If `true`, 2 jokers are inserted into the deck.
+     * @param bottomLeftCard The bottom-left card revealed to player 0 at the beginning of the game, stored in `playerCardInfo[0][2]`.
+     * @param bottomRightCard The bottom-right card revealed to player 0 at the beginning of the game, stored in `playerCardInfo[0][3]`.
      */
     class PartialInfo(
         override val numPlayers: Int,
@@ -124,7 +132,7 @@ interface Game {
     }
 
     /**
-     *
+     * A determinized game state with all cards known.
      */
     class Determinized(game: PartialInfo) : Game {
         override val numPlayers = game.numPlayers
@@ -134,14 +142,15 @@ interface Game {
             .toMutableList()
 
         /**
-         * 
+         * List of cards in the draw deck.
+         * TODO use .shuffle()
          */
         val drawPile = game.unseenCards
             // Copy
             .toMutableList()
 
         /**
-         * 
+         * The cards that each player has.
          */
         val playerCards = game.playerCardInfo.map { it.map { card ->
             card as? Card.Known ?: drawRandom()
