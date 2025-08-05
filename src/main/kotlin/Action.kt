@@ -57,7 +57,7 @@ interface Action {
     /**
      * The current player to move draws a card.
      */
-    class DrawSelf(val card: Card.Known) : CardRevealing {
+    object DrawSelf : CardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
             --game.drawPileSize
             game.drawnCard = cardRevealed
