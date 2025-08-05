@@ -77,6 +77,9 @@ interface Action {
             game.drawnCard = game.draw()
             return AFTER_DRAW
         }
+
+        override fun toString() =
+            "Draw"
     }
 
     /**
@@ -92,6 +95,9 @@ interface Action {
             game.drawnCard = game.draw()
             return AFTER_DRAW
         }
+
+        override fun toString() =
+            "Draw"
     }
 
     /**
@@ -103,6 +109,8 @@ interface Action {
             game.discardPile.add(drawnCard)
             return drawnCard.nextStateWhenDiscarded
         }
+        override fun toString() =
+            "Discard"
     }
 
     /**
@@ -116,6 +124,8 @@ interface Action {
         }
         override fun applyUniqueEffects(game: Game.Determinized) =
             DiscardAs0.applyUniqueEffects(game)
+        override fun toString() =
+            "Discard"
     }
 
     /**
@@ -134,6 +144,8 @@ interface Action {
             game.playerCards[game.turn][index] = game.drawnCard as Card.Known
             return END_OF_TURN
         }
+        override fun toString() =
+            "Swap #$index"
     }
 
     /**
@@ -152,6 +164,8 @@ interface Action {
             game.playerCards[playerB][indexB] = cardA
             return END_OF_TURN
         }
+        override fun toString() =
+            "Switch P$playerA #$indexA with P$playerB's #$indexB"
     }
 
     /**
@@ -164,6 +178,8 @@ interface Action {
         }
         override fun applyUniqueEffects(game: Game.Determinized) =
             END_OF_TURN
+        override fun toString() =
+            "Peek #$index"
     }
 
     /**
@@ -172,6 +188,8 @@ interface Action {
     class PeekAtOwnCardNotAs0(val index: Int) : SameEffects {
         override fun applyUniqueEffects(game: Game) =
             END_OF_TURN
+        override fun toString() =
+            "Peek #$index"
     }
 
     /**
@@ -191,6 +209,9 @@ interface Action {
                 AFTER_PEEK_BLACK_KING
             else
                 END_OF_TURN
+
+        override fun toString() =
+            "Peek P$player #$index"
     }
 
     /**
@@ -202,6 +223,8 @@ interface Action {
                 AFTER_PEEK_BLACK_KING
             else
                 END_OF_TURN
+        override fun toString() =
+            "Peek P$player #$index"
     }
 
     /**
@@ -210,12 +233,14 @@ interface Action {
     class BlackKingPeekAsOther(val player: Int, val index: Int) : SameEffects {
         override fun applyUniqueEffects(game: Game) =
             AFTER_PEEK_BLACK_KING
+        override fun toString() =
+            "Peek P$player #$index"
     }
 
     /**
      *
      */
-    class BlackKingSwap(val index: Int) : NonCardRevealing {
+    class BlackKingSwitch(val index: Int) : NonCardRevealing {
         override fun applyUniqueEffects(game: Game.Determinized) =
             (game.actionHistory.last() as BlackKingPeekAsOther).let {
                 BlindSwitch(it.player, it.index, game.turn, index)
@@ -226,6 +251,8 @@ interface Action {
                 BlindSwitch(it.player, it.index, game.turn, index)
                     .applyUniqueEffects(game)
             }
+        override fun toString() =
+            "Switch with #$index"
     }
 
     /**
@@ -252,6 +279,8 @@ interface Action {
 
             TODO("Stick")
         }
+        override fun toString() =
+            "P$player sticks #$index"
     }
 
     /**
@@ -278,6 +307,8 @@ interface Action {
 
             TODO("StickAndGiveAway")
         }
+        override fun toString() =
+            "P$stickPlayer sticks P$player #$index, gives away #$giveAwayIndex"
     }
 
     /**
@@ -289,6 +320,8 @@ interface Action {
             game.incTurn()
             return BEGINNING_OF_TURN
         }
+        override fun toString() =
+            "Cambio; end turn"
     }
 
     /**
@@ -303,6 +336,8 @@ interface Action {
             else
                 BEGINNING_OF_TURN
         }
+        override fun toString() =
+            "End turn"
     }
 
     /**
@@ -311,5 +346,7 @@ interface Action {
     object SkipAction : SameEffects {
         override fun applyUniqueEffects(game: Game) =
             END_OF_TURN
+        override fun toString() =
+            "N/A"
     }
 }
