@@ -55,9 +55,9 @@ interface Action {
     }
 
     /**
-     * The current player to move draws a card.
+     *
      */
-    object DrawSelf : CardRevealing {
+    object Draw0 : CardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
             --game.drawPileSize
             game.drawnCard = cardRevealed
@@ -72,7 +72,7 @@ interface Action {
     /**
      *
      */
-    object DrawOther : NonCardRevealing {
+    object DrawNon0 : NonCardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo): State {
             --game.drawPileSize
             game.drawnCard = Card.Unknown()
@@ -87,7 +87,7 @@ interface Action {
     /**
      *
      */
-    object DiscardSelf : NonCardRevealing {
+    object Discard0 : NonCardRevealing {
         private fun applyUniqueEffects(game: Game) =
             (game.drawnCard as Card.Known).let {
                 game.discardPile.add(it)
@@ -108,7 +108,7 @@ interface Action {
     /**
      *
      */
-    object DiscardOther : CardRevealing {
+    object DiscardNon0 : CardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
             game.drawnCard = cardRevealed
             game.discardPile.add(cardRevealed)
@@ -173,7 +173,7 @@ interface Action {
     /**
      *
      */
-    class PeekSelf(val index: Int) : CardRevealing {
+    class PeekAtOwnCard(val index: Int) : CardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
             game.playerCards[0][index] = cardRevealed
             return TURN_END
@@ -186,7 +186,7 @@ interface Action {
     /**
      *
      */
-    class PeekOther(val player: Int, val index: Int) : CardRevealing {
+    class PeekAtOtherCard(val player: Int, val index: Int) : CardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
             game.playerCards[player][index] = cardRevealed
 
