@@ -239,7 +239,7 @@ interface Game {
 
                 State.AFTER_PEEK_BLACK_KING -> addAll(
                     playerCards[turn].indices
-                        .map { Action.BlackKingSwap(it) }
+                        .map { Action.BlackKingSwitch(it) }
                 )
 
                 State.END_OF_TURN -> add(Action.EndTurn)
@@ -249,6 +249,8 @@ interface Game {
 
             if(state.optional)
                 add(Action.SkipAction)
+
+            return@buildSet // TODO remove
 
             if(!stuck && state.stickable)
                 add(TODO("Generate list of possible sticks. Explain in comment that we don't consider false sticks"))
