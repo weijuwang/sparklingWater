@@ -23,7 +23,7 @@ object Card {
         /**
          * The state that a game will progress to when this card is discarded.
          */
-        val nextStateWhenDiscarded: State = State.TURN_END
+        val nextStateWhenDiscarded: State = State.END_OF_TURN
     ) : MaybeKnown {
         ACE("A", 1),
         TWO("2", 2),

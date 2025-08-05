@@ -1,8 +1,9 @@
 import State.*
-import Card.Known.*
 
 /**
  * TODO illegal actions
+ * TODO keep track of who looked at which cards
+ * TODO how to handle `cardRevealed` discrepancy with stored information
  */
 interface Action {
     /**
@@ -42,6 +43,15 @@ interface Action {
     }
 
     /**
+     * An [Action] that has the same effects on [Game.PartialInfo] and [Game.Determinized].
+     */
+    interface SameEffects : NonCardRevealing {
+        fun applyUniqueEffects(game: Game): State
+        override fun applyUniqueEffects(game: Game.Determinized) = applyUniqueEffects(game as Game)
+        override fun applyUniqueEffects(game: Game.PartialInfo) = applyUniqueEffects(game as Game)
+    }
+
+    /**
      * Defines the effects that should be applied to [game] after executing this action.
      */
     fun applyUniqueEffects(game: Game.Determinized): State
@@ -55,9 +65,9 @@ interface Action {
     }
 
     /**
-     *
+     * Draw a card. This should only be used when the current turn is 0.
      */
-    object Draw0 : CardRevealing {
+    object DrawAs0 : CardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
             --game.drawPileSize
             game.drawnCard = cardRevealed
@@ -70,9 +80,9 @@ interface Action {
     }
 
     /**
-     *
+     * Draw a card. This should only be used when the current turn is not 0.
      */
-    object DrawNon0 : NonCardRevealing {
+    object DrawNotAs0 : NonCardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo): State {
             --game.drawPileSize
             game.drawnCard = Card.Unknown()
@@ -85,137 +95,120 @@ interface Action {
     }
 
     /**
-     *
+     * Discard the card that was just drawn. This should only be used when the current turn is 0.
      */
-    object Discard0 : NonCardRevealing {
-        private fun applyUniqueEffects(game: Game) =
-            (game.drawnCard as Card.Known).let {
-                game.discardPile.add(it)
-                // Figure out which state to go to depending on what card was discarded
-                when(it) {
-                    SEVEN, EIGHT            -> AFTER_DISCARD_78
-                    NINE, TEN               -> AFTER_DISCARD_910
-                    JACK, QUEEN, RED_KING   -> AFTER_DISCARD_FACE
-                    BLACK_KING              -> AFTER_DISCARD_BLACK_KING
-                    else                    -> TURN_END
-                }
-            }
-
-        override fun applyUniqueEffects(game: Game.PartialInfo) = applyUniqueEffects(game as Game)
-        override fun applyUniqueEffects(game: Game.Determinized) = applyUniqueEffects(game as Game)
+    object DiscardAs0 : NonCardRevealing, SameEffects {
+        override fun applyUniqueEffects(game: Game): State {
+            val drawnCard = game.drawnCard as Card.Known
+            game.discardPile.add(drawnCard)
+            return drawnCard.nextStateWhenDiscarded
+        }
     }
 
     /**
-     *
+     * Discard the card that was just drawn. This should only be used when the current turn is not 0.
      */
-    object DiscardNon0 : CardRevealing {
+    object DiscardNotAs0 : CardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
             game.drawnCard = cardRevealed
             game.discardPile.add(cardRevealed)
-            // Figure out which state to go to depending on what card was discarded
-            return when (cardRevealed) {
-                SEVEN, EIGHT -> AFTER_DISCARD_78
-                NINE, TEN -> AFTER_DISCARD_910
-                JACK, QUEEN, RED_KING -> AFTER_DISCARD_FACE
-                BLACK_KING -> AFTER_DISCARD_BLACK_KING
-                else -> TURN_END
-            }
+            return cardRevealed.nextStateWhenDiscarded
         }
-        override fun applyUniqueEffects(game: Game.Determinized): State {
-            (game.drawnCard as Card.Known).let {
-                game.discardPile.add(it)
-                // Figure out which state to go to depending on what card was discarded
-                return when (it) {
-                    SEVEN, EIGHT -> AFTER_DISCARD_78
-                    NINE, TEN -> AFTER_DISCARD_910
-                    JACK, QUEEN, RED_KING -> AFTER_DISCARD_FACE
-                    BLACK_KING -> AFTER_DISCARD_BLACK_KING
-                    else -> TURN_END
-                }
-            }
-        }
+        override fun applyUniqueEffects(game: Game.Determinized) =
+            DiscardAs0.applyUniqueEffects(game)
     }
 
+    /**
+     * Swap the card that was just drawn for one of the cards the player who drew the card has.
+     */
     class Swap(val index: Int) : CardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
-            // TODO At this line, [cardRevealed] and [game.playerCards[game.turn][index]] should be the same. Should we throw an error if not?
             // We found out what the card is but it's getting discarded anyways, so no need to update `playerCards`
             game.discardPile.add(cardRevealed)
             // Update the newly drawn card
-            game.playerCards[game.turn][index] = game.drawnCard
-            return TURN_END
+            game.playerCardInfo[game.turn][index] = game.drawnCard
+            return END_OF_TURN
         }
         override fun applyUniqueEffects(game: Game.Determinized): State {
             game.discardPile.add(game.playerCards[game.turn][index])
             game.playerCards[game.turn][index] = game.drawnCard as Card.Known
-            return TURN_END
+            return END_OF_TURN
         }
     }
 
     /**
-     *
+     * Switch any two cards.
      */
     class BlindSwitch(val playerA: Int, val indexA: Int, val playerB: Int, val indexB: Int) : NonCardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo): State {
-            val cardA = game.playerCards[playerA][indexA]
-            game.playerCards[playerA][indexA] = game.playerCards[playerB][indexB]
-            game.playerCards[playerB][indexB] = cardA
-            return TURN_END
+            val cardA = game.playerCardInfo[playerA][indexA]
+            game.playerCardInfo[playerA][indexA] = game.playerCardInfo[playerB][indexB]
+            game.playerCardInfo[playerB][indexB] = cardA
+            return END_OF_TURN
         }
         override fun applyUniqueEffects(game: Game.Determinized): State {
             val cardA = game.playerCards[playerA][indexA]
             game.playerCards[playerA][indexA] = game.playerCards[playerB][indexB]
             game.playerCards[playerB][indexB] = cardA
-            return TURN_END
+            return END_OF_TURN
         }
     }
 
     /**
      *
      */
-    class PeekAtOwnCard(val index: Int) : CardRevealing {
+    class PeekAtOwnCardAs0(val index: Int) : CardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
-            game.playerCards[0][index] = cardRevealed
-            return TURN_END
+            game.playerCardInfo[0][index] = cardRevealed
+            return END_OF_TURN
         }
         override fun applyUniqueEffects(game: Game.Determinized) =
-            // Nothing happens, we already know the card
-            TURN_END
+            END_OF_TURN
     }
 
     /**
      *
      */
-    class PeekAtOtherCard(val player: Int, val index: Int) : CardRevealing {
+    class PeekAtOwnCardNotAs0(val index: Int) : SameEffects {
+        override fun applyUniqueEffects(game: Game) =
+            END_OF_TURN
+    }
+
+    /**
+     *
+     */
+    class PeekAtOtherCardAs0(val player: Int, val index: Int) : CardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
-            game.playerCards[player][index] = cardRevealed
+            game.playerCardInfo[player][index] = cardRevealed
 
             return if(game.state == AFTER_DISCARD_BLACK_KING)
                 AFTER_PEEK_BLACK_KING
             else
-                TURN_END
+                END_OF_TURN
         }
-        override fun applyUniqueEffects(game: Game.Determinized): State {
-            // Nothing happens, we already know the card
-
-            return if(game.state == AFTER_DISCARD_BLACK_KING)
+        override fun applyUniqueEffects(game: Game.Determinized) =
+            if(game.state == AFTER_DISCARD_BLACK_KING)
                 AFTER_PEEK_BLACK_KING
             else
-                TURN_END
-        }
+                END_OF_TURN
     }
 
     /**
      *
      */
-    class BlackKingPeekAsOther(val player: Int, val index: Int) : NonCardRevealing {
-        override fun applyUniqueEffects(game: Game.PartialInfo) =
-            /*
-            From our perspective, nothing happens. This may change later
-            if I add code that keeps track of who has looked at which cards.
-            */
-            AFTER_PEEK_BLACK_KING
-        override fun applyUniqueEffects(game: Game.Determinized) =
+    class PeekAtOtherCardNotAs0(val player: Int, val index: Int) : SameEffects {
+        override fun applyUniqueEffects(game: Game) =
+            if(game.state == AFTER_DISCARD_BLACK_KING)
+                AFTER_PEEK_BLACK_KING
+            else
+                END_OF_TURN
+    }
+
+    /**
+     *
+     */
+    class BlackKingPeekAsOther(val player: Int, val index: Int) : SameEffects {
+        override fun applyUniqueEffects(game: Game) =
             AFTER_PEEK_BLACK_KING
     }
 
@@ -223,12 +216,12 @@ interface Action {
      *
      */
     class BlackKingSwap(val index: Int) : NonCardRevealing {
-        override fun applyUniqueEffects(game: Game.PartialInfo) =
+        override fun applyUniqueEffects(game: Game.Determinized) =
             (game.actionHistory.last() as BlackKingPeekAsOther).let {
                 BlindSwitch(it.player, it.index, game.turn, index)
                     .applyUniqueEffects(game)
             }
-        override fun applyUniqueEffects(game: Game.Determinized) =
+        override fun applyUniqueEffects(game: Game.PartialInfo) =
             (game.actionHistory.last() as BlackKingPeekAsOther).let {
                 BlindSwitch(it.player, it.index, game.turn, index)
                     .applyUniqueEffects(game)
@@ -236,16 +229,15 @@ interface Action {
     }
 
     /**
-     *
+     * Stick a card. If the player is not sticking their own card, use [StickAndGiveAway].
      */
     class Stick(val player: Int, val index: Int) : CardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
-            // TODO this card might not be what the user claims it is
-            game.playerCards[player].removeAt(index)
+            game.playerCardInfo[player].removeAt(index)
 
             game.discardPile.add(cardRevealed)
 
-            TODO()
+            TODO("Stick")
         }
         override fun applyUniqueEffects(game: Game.Determinized): State {
             val stuckCard = game.playerCards[player].removeAt(index)
@@ -258,21 +250,20 @@ interface Action {
                 // TODO Have stickPlayer draw a card
             }
 
-            TODO()
+            TODO("Stick")
         }
     }
 
     /**
-     *
+     * Stick a card. If the player is sticking their own card, use [Stick].
      */
     class StickAndGiveAway(val stickPlayer: Int, val player: Int, val index: Int, val giveAwayIndex: Int) : CardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
-            // TODO this card might not be what the user claims it is
-            game.playerCards[player].removeAt(index)
+            game.playerCardInfo[player].removeAt(index)
 
             game.discardPile.add(cardRevealed)
 
-            TODO()
+            TODO("StickAndGiveAway")
         }
         override fun applyUniqueEffects(game: Game.Determinized): State {
             val stuckCard = game.playerCards[player].removeAt(index)
@@ -285,44 +276,40 @@ interface Action {
                 // TODO Have stickPlayer draw a card
             }
 
-            TODO()
+            TODO("StickAndGiveAway")
         }
     }
 
     /**
-     *
+     * Call "Cambio".
      */
-    object Cambio : NonCardRevealing {
-        private fun applyUniqueEffects(game: Game): State {
+    object Cambio : SameEffects {
+        override fun applyUniqueEffects(game: Game): State {
             game.cambioCaller = game.turn
             game.incTurn()
-            return TURN_BEGIN
+            return BEGINNING_OF_TURN
         }
-        override fun applyUniqueEffects(game: Game.PartialInfo) = applyUniqueEffects(game as Game)
-        override fun applyUniqueEffects(game: Game.Determinized) = applyUniqueEffects(game as Game)
     }
 
     /**
-     *
+     * End the turn. This bars any players from sticking.
      */
-    object EndTurn : NonCardRevealing {
-        private fun applyUniqueEffects(game: Game): State {
+    object EndTurn : SameEffects {
+        override fun applyUniqueEffects(game: Game): State {
             game.stuck = false
             game.incTurn()
             return if (game.turn == game.cambioCaller)
-                GAME_END
+                END_OF_GAME
             else
-                TURN_BEGIN
+                BEGINNING_OF_TURN
         }
-
-        override fun applyUniqueEffects(game: Game.PartialInfo) = applyUniqueEffects(game as Game)
-        override fun applyUniqueEffects(game: Game.Determinized) = applyUniqueEffects(game as Game)
     }
 
-    object SkipAction : NonCardRevealing {
-        override fun applyUniqueEffects(game: Game.PartialInfo) =
-            TURN_END
-        override fun applyUniqueEffects(game: Game.Determinized) =
-            TURN_END
+    /**
+     * Skip an optional action resulting from discarding a card.
+     */
+    object SkipAction : SameEffects {
+        override fun applyUniqueEffects(game: Game) =
+            END_OF_TURN
     }
 }

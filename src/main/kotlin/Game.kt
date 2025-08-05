@@ -57,7 +57,7 @@ interface Game {
     /**
      *
      */
-    open class PartialInfo(
+    class PartialInfo(
         override val numPlayers: Int,
         firstPlayer: Int,
         jokers: Boolean,
@@ -68,7 +68,7 @@ interface Game {
 
         /**
          * Face-down cards whose values are unknown to us. This includes all cards in the draw pile and any players'
-         * cards we haven't seen. Once we see a card, it is moved to [playerCards].
+         * cards we haven't seen. Once we see a card, it is moved to [playerCardInfo].
          */
         val unseenCards = mapOf(
             ACE to 4, TWO to 4, THREE to 4, FOUR to 4, FIVE to 4,
@@ -106,7 +106,7 @@ interface Game {
         /**
          * Information we have on each players' cards. As an example, card 0 of player 3 is `playerCards[3][0].`
          */
-        val playerCards: Array<MutableList<Card.MaybeKnown>> =
+        val playerCardInfo: Array<MutableList<Card.MaybeKnown>> =
             arrayOf(
                 mutableListOf(
                     Card.Unknown(),
@@ -119,7 +119,7 @@ interface Game {
         override var drawnCard: Card.MaybeKnown = Card.Unknown()
         override var cambioCaller: Int? = null
         override var stuck = false
-        override var state = State.TURN_BEGIN
+        override var state = State.BEGINNING_OF_TURN
         override val actionHistory = mutableListOf<Action>()
     }
 
@@ -143,7 +143,7 @@ interface Game {
         /**
          * 
          */
-        val playerCards = game.playerCards.map { it.map { card ->
+        val playerCards = game.playerCardInfo.map { it.map { card ->
             card as? Card.Known ?: drawRandom()
         }.toMutableList() }
 
@@ -159,5 +159,83 @@ interface Game {
          * Draws a random card and removes it from the [drawPile].
          */
         fun drawRandom() = drawPile.removeAt((0..<drawPile.size).random())
+
+        /**
+         * Returns all legal actions.
+         */
+        fun legalActions() = buildSet {
+            when(state) {
+
+                State.BEGINNING_OF_TURN -> {
+                    add(
+                        if (turn == 0)
+                            Action.DrawAs0
+                        else
+                            Action.DrawNotAs0
+                    )
+                    if (cambioCaller != null)
+                        add(Action.Cambio)
+                }
+
+                State.AFTER_DRAW -> {
+                    add(
+                        if (turn == 0)
+                            Action.DiscardAs0
+                        else
+                            Action.DiscardNotAs0
+                    )
+
+                    addAll(
+                        playerCards[turn].indices
+                            .map { Action.Swap(it) }
+                    )
+                }
+
+                State.AFTER_DISCARD_78 -> addAll(
+                    playerCards[turn].indices
+                        .map { Action.PeekAtOwnCardAs0(it) }
+                )
+
+                State.AFTER_DISCARD_910, State.AFTER_DISCARD_BLACK_KING -> addAll(
+                    (1..<numPlayers)
+                        .flatMap { player ->
+                            playerCards[player].indices
+                                .map { Action.PeekAtOtherCardAs0(player, it) }
+                        }
+                )
+
+                State.AFTER_DISCARD_FACE -> addAll(
+                    // Iterating through all combinations of two players
+                    (1..<numPlayers)
+                        .flatMap { playerA -> // Select first player
+                            ((playerA + 1)..<numPlayers)
+                                .flatMap { playerB -> // Select second player
+                                    playerCards[playerA].indices
+                                        .flatMap { indexA -> // Select first player's card
+                                            playerCards[playerB].indices
+                                                .map { indexB -> // Select second player's card
+                                                    Action.BlindSwitch(playerA, indexA, playerB, indexB)
+                                                }
+                                        }
+                                }
+                        }
+                )
+
+                State.AFTER_PEEK_BLACK_KING -> addAll(
+                    playerCards[turn].indices
+                        .map { Action.BlackKingSwap(it) }
+                )
+
+                State.END_OF_TURN -> add(Action.EndTurn)
+
+                State.END_OF_GAME -> return@buildSet
+            }
+
+            if(state.optional)
+                add(Action.SkipAction)
+
+            if(!stuck && state.stickable)
+                add(TODO("Generate list of possible sticks. Explain in comment that we don't consider false sticks"))
+        }
     }
 }
