@@ -173,7 +173,7 @@ interface Game {
                         else
                             Action.DrawNotAs0
                     )
-                    if (cambioCaller != null)
+                    if (cambioCaller == null)
                         add(Action.Cambio)
                 }
 
