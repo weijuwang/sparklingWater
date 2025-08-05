@@ -18,7 +18,12 @@ object Card {
         /**
          * The number of points the card is worth.
          */
-        val points: Int
+        val points: Int,
+
+        /**
+         * The state that a game will progress to when this card is discarded.
+         */
+        val nextStateWhenDiscarded: State = State.TURN_END
     ) : MaybeKnown {
         ACE("A", 1),
         TWO("2", 2),
@@ -26,14 +31,14 @@ object Card {
         FOUR("4", 4),
         FIVE("5", 5),
         SIX("6", 6),
-        SEVEN("7", 7),
-        EIGHT("8", 8),
-        NINE("9", 9),
-        TEN("10", 10),
-        JACK("J", 10),
-        QUEEN("Q", 10),
-        BLACK_KING("BK", 10),
-        RED_KING("RK", -1),
+        SEVEN("7", 7, nextStateWhenDiscarded=State.AFTER_DISCARD_78),
+        EIGHT("8", 8, nextStateWhenDiscarded=State.AFTER_DISCARD_78),
+        NINE("9", 9, nextStateWhenDiscarded=State.AFTER_DISCARD_910),
+        TEN("10", 10, nextStateWhenDiscarded=State.AFTER_DISCARD_910),
+        JACK("J", 10, nextStateWhenDiscarded=State.AFTER_DISCARD_FACE),
+        QUEEN("Q", 10, nextStateWhenDiscarded=State.AFTER_DISCARD_FACE),
+        BLACK_KING("BK", 10, nextStateWhenDiscarded=State.AFTER_DISCARD_BLACK_KING),
+        RED_KING("RK", -1, nextStateWhenDiscarded=State.AFTER_DISCARD_FACE),
         JOKER("0", 0);
     }
 
