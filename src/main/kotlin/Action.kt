@@ -348,8 +348,6 @@ interface Action {
 
     /**
      * End the turn. This bars any players from sticking.
-     *
-     * This should be thought of as a formality by the next player, declaring that they are now starting their turn.
      */
     object EndTurn : SameEffects {
         override fun applyUniqueEffects(game: Game): State {

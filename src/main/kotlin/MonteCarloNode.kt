@@ -87,9 +87,6 @@ object MonteCarloTreeSearch {
             // Select a random branch to expand
             val expandedAction = unexpandedActions.random()
 
-            // Execute the action
-            expandedAction.execute(determinized)
-
             // Create the node
             children[expandedAction] = Node(
                 player = when (expandedAction) {
@@ -99,6 +96,9 @@ object MonteCarloTreeSearch {
                 },
                 parent = this
             )
+
+            // Execute the action
+            expandedAction.execute(determinized)
 
             return children[expandedAction]!!
         }
