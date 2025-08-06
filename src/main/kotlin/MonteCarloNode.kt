@@ -152,6 +152,6 @@ class MonteCarloNode private constructor(
         STEP 4: BACKPROPAGATION
          */
         val winners = determinized.winners()
-        backpropagate(winners, 1.0 / winners.size)
+        expandedNode.backpropagate(winners, 1.0 / winners.size)
     }
 }
