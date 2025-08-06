@@ -90,8 +90,9 @@ object MonteCarloTreeSearch {
             // Create the node
             children[expandedAction] = Node(
                 player = when (expandedAction) {
-                    is Action.Stick -> expandedAction.player
-                    is Action.StickAndGiveAway -> expandedAction.stickPlayer
+                    is Action.TrueStick, is Action.FalseStickAs0 -> expandedAction.player
+                    is Action.TrueStickAndGiveAway -> expandedAction.stickPlayer
+                    is Action.FalseStickNotAs0 -> expandedAction.stickPlayer
                     else -> determinized.turn
                 },
                 parent = this

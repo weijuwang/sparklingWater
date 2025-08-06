@@ -263,8 +263,6 @@ interface Game {
             if(state.optional)
                 add(Action.SkipAction)
 
-            return@buildSet // TODO remove
-
             if(!stuck && state.stickable)
                 add(TODO("Generate list of possible sticks. Explain in comment that we don't consider false sticks"))
         }

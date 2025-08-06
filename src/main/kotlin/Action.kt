@@ -270,67 +270,127 @@ interface Action {
     }
 
     /**
-     * Stick a card. If the player is not sticking their own card, use [StickAndGiveAway].
+     * Stick a player's own card.
+     * This assumes that the stick is valid; otherwise, use [FalseStick].
+     * Use [TrueStickAndGiveAway] for sticking another player's card.
+     *
+     * This is considered [NonCardRevealing] because, given that the stick is valid, we can always deduce what the card must be.
      */
-    data class Stick(
+    data class TrueStick(
         override val player: Int,
         override val index: Int
-    ) : CardRevealing, TakesPlayerAndIndex {
-        override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
+    ) : NonCardRevealing, TakesPlayerAndIndex {
+        override fun applyUniqueEffects(game: Game.PartialInfo): State {
+            // Remove the stuck card
             game.playerCardInfo[player].removeAt(index)
+            // Duplicate the top card on the discard pile, which is equivalent to sticking it.
+            // We have to do this because the stuck card might have previously been `Card.Unknown`.
+            game.discardPile.add(game.discardPile.last())
 
-            game.discardPile.add(cardRevealed)
-
-            TODO("Stick")
+            game.stuck = true
+            return game.state
         }
         override fun applyUniqueEffects(game: Game.Determinized): State {
-            val stuckCard = game.playerCards[player].removeAt(index)
+            game.discardPile.add(
+                game.playerCards[player].removeAt(index)
+            )
 
-            // Wrong stick
-            if (stuckCard != game.discardPile.last()) {
-                // Re-insert card
-                game.playerCards[player].add(index, stuckCard)
-
-                // TODO Have stickPlayer draw a card
-            }
-
-            TODO("Stick")
+            game.stuck = true
+            return game.state
         }
         override fun toString() =
             "P$player sticks #$index"
     }
 
     /**
-     * Stick a card. If the player is sticking their own card, use [Stick].
+     * Stick a card.
+     * If the player is sticking their own card, use [TrueStick].
+     * If the stick is invalid, use [FalseStick].
+     *
+     * This is considered [NonCardRevealing] because, given that the stick is valid, we can always deduce what the card must be.
      */
-    data class StickAndGiveAway(
-        val stickPlayer: Int,
+    data class TrueStickAndGiveAway(
         override val player: Int,
         override val index: Int,
+        val stickPlayer: Int,
         val giveAwayIndex: Int
-    ) : CardRevealing, TakesPlayerAndIndex {
-        override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
+    ) : NonCardRevealing, TakesPlayerAndIndex {
+        override fun applyUniqueEffects(game: Game.PartialInfo): State {
+            // Remove the stuck card
             game.playerCardInfo[player].removeAt(index)
+            // Duplicate the top card on the discard pile, which is equivalent to sticking it.
+            // We have to do this because the stuck card might have previously been `Card.Unknown`.
+            game.discardPile.add(game.discardPile.last())
 
-            game.discardPile.add(cardRevealed)
+            // Move the giveaway card
+            game.playerCardInfo[player].add(
+                game.playerCardInfo[stickPlayer].removeAt(giveAwayIndex)
+            )
 
-            TODO("StickAndGiveAway")
+            // Record that a card was stuck
+            game.stuck = true
+
+            return game.state
         }
         override fun applyUniqueEffects(game: Game.Determinized): State {
-            val stuckCard = game.playerCards[player].removeAt(index)
+            // Stick the card
+            game.discardPile.add(
+                game.playerCards[player].removeAt(index)
+            )
 
-            // Wrong stick
-            if (stuckCard != game.discardPile.last()) {
-                // Re-insert card
-                game.playerCards[player].add(index, stuckCard)
+            // Move the giveaway card
+            game.playerCards[player].add(
+                game.playerCards[stickPlayer].removeAt(giveAwayIndex)
+            )
 
-                // TODO Have stickPlayer draw a card
-            }
+            // Record that a card was stuck
+            game.stuck = true
 
-            TODO("StickAndGiveAway")
+            return game.state
         }
         override fun toString() =
-            "P$stickPlayer sticks P$player #$index, gives away #$giveAwayIndex"
+            "P$stickPlayer sticks P$player #$index; gives away #$giveAwayIndex"
+    }
+
+    /**
+     * An invalid stick from player 0.
+     * See [FalseStickNotAs0].
+     * Use [TrueStick] and [TrueStickAndGiveAway] for valid sticks.
+     */
+    data class FalseStickAs0(
+        override val player: Int,
+        override val index: Int
+    ) : CardRevealing, TakesPlayerAndIndex {
+        override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
+            game.playerCardInfo[0].add(cardRevealed)
+            return game.state
+        }
+        override fun applyUniqueEffects(game: Game.Determinized) =
+            FalseStickNotAs0(player, index, 0).applyUniqueEffects(game)
+        override fun toString() =
+            FalseStickNotAs0(player, index, 0).toString()
+    }
+
+    /**
+     * An invalid stick not from player 0.
+     * See [FalseStickAs0].
+     * Use [TrueStick] and [TrueStickAndGiveAway] for valid sticks.
+     *
+     * TODO What can we do with this information? Right now this would tell us what the card isn't but we can't store that
+     */
+    data class FalseStickNotAs0(
+        override val player: Int,
+        override val index: Int,
+        val stickPlayer: Int
+    ) : NonCardRevealing, TakesPlayerAndIndex {
+        override fun applyUniqueEffects(game: Game.PartialInfo) =
+            game.state
+        override fun applyUniqueEffects(game: Game.Determinized): State {
+            game.playerCards[stickPlayer].add(game.draw())
+            return game.state
+        }
+        override fun toString() =
+            "P0 false-sticks P$player #$index; draws card"
     }
 
     /**
