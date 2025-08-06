@@ -211,14 +211,24 @@ interface Game {
 
                 State.AFTER_DISCARD_78 -> addAll(
                     playerCards[turn].indices
-                        .map { Action.PeekAtOwnCardAs0(it) }
+                        .map {
+                            if (turn == 0)
+                                Action.PeekAtOwnCardAs0(it)
+                            else
+                                Action.PeekAtOwnCardNotAs0(it)
+                        }
                 )
 
                 State.AFTER_DISCARD_910, State.AFTER_DISCARD_BLACK_KING -> addAll(
                     (1..<numPlayers)
                         .flatMap { player ->
                             playerCards[player].indices
-                                .map { Action.PeekAtOtherCardAs0(player, it) }
+                                .map {
+                                    if (turn == 0)
+                                        Action.PeekAtOtherCardAs0(player, it)
+                                    else
+                                        Action.PeekAtOtherCardNotAs0(player, it)
+                                }
                         }
                 )
 

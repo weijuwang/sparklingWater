@@ -51,6 +51,11 @@ interface Action {
         override fun applyUniqueEffects(game: Game.PartialInfo) = applyUniqueEffects(game as Game)
     }
 
+    interface TakesPlayerAndIndex : Action {
+        val player: Int
+        val index: Int
+    }
+
     /**
      * Defines the effects that should be applied to [game] after executing this action.
      */
@@ -103,7 +108,7 @@ interface Action {
     /**
      * Discard the card that was just drawn. This should only be used when the current turn is 0.
      */
-    object DiscardAs0 : NonCardRevealing, SameEffects {
+    object DiscardAs0 : SameEffects {
         override fun applyUniqueEffects(game: Game): State {
             val drawnCard = game.drawnCard as Card.Known
             game.discardPile.add(drawnCard)
@@ -131,7 +136,9 @@ interface Action {
     /**
      * Swap the card that was just drawn for one of the cards the player who drew the card has.
      */
-    class Swap(val index: Int) : CardRevealing {
+    data class Swap(
+        val index: Int
+    ) : CardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
             // We found out what the card is but it's getting discarded anyways, so no need to update `playerCards`
             game.discardPile.add(cardRevealed)
@@ -151,7 +158,12 @@ interface Action {
     /**
      * Switch any two cards.
      */
-    class BlindSwitch(val playerA: Int, val indexA: Int, val playerB: Int, val indexB: Int) : NonCardRevealing {
+    data class BlindSwitch(
+        val playerA: Int,
+        val indexA: Int,
+        val playerB: Int,
+        val indexB: Int
+    ) : NonCardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo): State {
             val cardA = game.playerCardInfo[playerA][indexA]
             game.playerCardInfo[playerA][indexA] = game.playerCardInfo[playerB][indexB]
@@ -171,7 +183,9 @@ interface Action {
     /**
      *
      */
-    class PeekAtOwnCardAs0(val index: Int) : CardRevealing {
+    data class PeekAtOwnCardAs0(
+        val index: Int
+    ) : CardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
             game.playerCardInfo[0][index] = cardRevealed
             return END_OF_TURN
@@ -185,7 +199,9 @@ interface Action {
     /**
      *
      */
-    class PeekAtOwnCardNotAs0(val index: Int) : SameEffects {
+    data class PeekAtOwnCardNotAs0(
+        val index: Int
+    ) : SameEffects {
         override fun applyUniqueEffects(game: Game) =
             END_OF_TURN
         override fun toString() =
@@ -195,7 +211,10 @@ interface Action {
     /**
      *
      */
-    class PeekAtOtherCardAs0(val player: Int, val index: Int) : CardRevealing {
+    data class PeekAtOtherCardAs0(
+        override val player: Int,
+        override val index: Int
+    ) : CardRevealing, TakesPlayerAndIndex {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
             game.playerCardInfo[player][index] = cardRevealed
 
@@ -217,7 +236,10 @@ interface Action {
     /**
      *
      */
-    class PeekAtOtherCardNotAs0(val player: Int, val index: Int) : SameEffects {
+    data class PeekAtOtherCardNotAs0(
+        override val player: Int,
+        override val index: Int
+    ) : SameEffects, TakesPlayerAndIndex {
         override fun applyUniqueEffects(game: Game) =
             if(game.state == AFTER_DISCARD_BLACK_KING)
                 AFTER_PEEK_BLACK_KING
@@ -227,27 +249,20 @@ interface Action {
             "Peek P$player #$index"
     }
 
-    /**
-     *
-     */
-    class BlackKingPeekAsOther(val player: Int, val index: Int) : SameEffects {
-        override fun applyUniqueEffects(game: Game) =
-            AFTER_PEEK_BLACK_KING
-        override fun toString() =
-            "Peek P$player #$index"
-    }
 
     /**
      *
      */
-    class BlackKingSwitch(val index: Int) : NonCardRevealing {
+    class BlackKingSwitch(
+        val index: Int
+    ) : NonCardRevealing {
         override fun applyUniqueEffects(game: Game.Determinized) =
-            (game.actionHistory.last() as BlackKingPeekAsOther).let {
+            (game.actionHistory.last() as TakesPlayerAndIndex).let {
                 BlindSwitch(it.player, it.index, game.turn, index)
                     .applyUniqueEffects(game)
             }
         override fun applyUniqueEffects(game: Game.PartialInfo) =
-            (game.actionHistory.last() as BlackKingPeekAsOther).let {
+            (game.actionHistory.last() as TakesPlayerAndIndex).let {
                 BlindSwitch(it.player, it.index, game.turn, index)
                     .applyUniqueEffects(game)
             }
@@ -258,7 +273,10 @@ interface Action {
     /**
      * Stick a card. If the player is not sticking their own card, use [StickAndGiveAway].
      */
-    class Stick(val player: Int, val index: Int) : CardRevealing {
+    class Stick(
+        override val player: Int,
+        override val index: Int
+    ) : CardRevealing, TakesPlayerAndIndex {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
             game.playerCardInfo[player].removeAt(index)
 
@@ -286,7 +304,12 @@ interface Action {
     /**
      * Stick a card. If the player is sticking their own card, use [Stick].
      */
-    class StickAndGiveAway(val stickPlayer: Int, val player: Int, val index: Int, val giveAwayIndex: Int) : CardRevealing {
+    class StickAndGiveAway(
+        val stickPlayer: Int,
+        override val player: Int,
+        override val index: Int,
+        val giveAwayIndex: Int
+    ) : CardRevealing, TakesPlayerAndIndex {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
             game.playerCardInfo[player].removeAt(index)
 

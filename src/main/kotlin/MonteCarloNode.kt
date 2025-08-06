@@ -63,6 +63,9 @@ class MonteCarloNode private constructor(
         val legalActions = determinized.legalActions()
         val unexpandedActions = legalActions.filter { it !in children }
 
+        if (determinized.state == State.END_OF_GAME)
+            return this
+
         // No unexpanded actions
         if (unexpandedActions.isEmpty()) {
             return children
