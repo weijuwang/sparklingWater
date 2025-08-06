@@ -1,6 +1,31 @@
 import State.*
 
 /**
+ * Represents an action that can be executed on a [Game].
+ *
+ * ## Types of actions
+ *
+ * I tried to keep the number of actions as low as possible. There are currently 18, which can be grouped
+ * into 8 categories. Actions whose names end with `As0` indicate that player 0 is responsible for that move.
+ * - Draw: [DrawAs0], [DrawNotAs0]
+ * - Discard: [DiscardAs0], [DiscardNotAs0]
+ * - Swap out the drawn card: [Swap]
+ * - Switch two cards: [BlindSwitch], [BlackKingSwitch]
+ * - Peek at a card: [PeekAtOwnCardAs0], [PeekAtOwnCardNotAs0], [PeekAtOtherCardAs0], [PeekAtOtherCardNotAs0]
+ * - Sticking: [TrueStick], [TrueStickAndGiveAway], [FalseStickAs0], [FalseStickNotAs0]
+ * - Call cambio: [Cambio]
+ * - Formalities: [EndTurn], [SkipAction]
+ *
+ * Many actions have different variants depending on whether the current turn is 0 or not or whether the player is operating
+ * on their own cards. The reason for this is that actions that we think of as the same may expose different amounts of
+ * information in a [Game.PartialInfo] with different parameters and it is therefore easier to treat them as different
+ * actions altogether. Examples of this are [DrawAs0] (in which we would find out the drawn card) and [DrawNotAs0] (in
+ * which this particular drawn card might not be known until the end of the game).
+ *
+ * Humans do not consider the last category to be true actions in gameplay because nothing physically changes about the
+ * state of the game, but in this API they make it easier to tell when a turn is over.
+ * TODO Should we get rid of [EndTurn] and [SkipAction]? It may make MCTS faster
+ *
  * TODO illegal actions
  * TODO keep track of who looked at which cards
  * TODO how to handle `cardRevealed` discrepancy with stored information
