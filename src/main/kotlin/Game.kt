@@ -267,7 +267,7 @@ interface Game {
                     cards.sumOf { it.points }
                 }
             val winningScore = scores.min()
-            return (0..numPlayers)
+            return (0..<numPlayers)
                 .filter {
                     scores[it] == winningScore
                             && it != cambioCaller
