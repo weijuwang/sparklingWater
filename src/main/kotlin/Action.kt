@@ -253,7 +253,7 @@ interface Action {
     /**
      *
      */
-    class BlackKingSwitch(
+    data class BlackKingSwitch(
         val index: Int
     ) : NonCardRevealing {
         override fun applyUniqueEffects(game: Game.Determinized) =
@@ -273,7 +273,7 @@ interface Action {
     /**
      * Stick a card. If the player is not sticking their own card, use [StickAndGiveAway].
      */
-    class Stick(
+    data class Stick(
         override val player: Int,
         override val index: Int
     ) : CardRevealing, TakesPlayerAndIndex {
@@ -304,7 +304,7 @@ interface Action {
     /**
      * Stick a card. If the player is sticking their own card, use [Stick].
      */
-    class StickAndGiveAway(
+    data class StickAndGiveAway(
         val stickPlayer: Int,
         override val player: Int,
         override val index: Int,
