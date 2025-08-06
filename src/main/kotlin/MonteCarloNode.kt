@@ -41,6 +41,8 @@ class MonteCarloNode private constructor(
         private const val EXPLORATION_PARAMETER = 1.414
     }
 
+    val winrate get() = wins / playouts
+
     /**
      * Access a child node. `null` if the child doesn't exist.
      */
@@ -155,10 +157,14 @@ class MonteCarloNode private constructor(
         expandedNode.backpropagate(winners, 1.0 / winners.size)
     }
 
+    /**
+     * TODO fix
+     */
     fun print(maxDepth: Int = 2, indent: Int = 0) {
         repeat(indent) { print(' ') }
         for ((action, child) in children) {
-            println("${child.wins}/${child.playouts} $action")
+            println("${child.wins}/${child.playouts} ${(100 * child.winrate).toInt()}% $action")
+            continue
             if(indent < maxDepth)
                 child.print(maxDepth=maxDepth, indent=indent+1)
         }

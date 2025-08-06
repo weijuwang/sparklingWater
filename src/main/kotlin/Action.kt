@@ -249,7 +249,6 @@ interface Action {
             "Peek P$player #$index"
     }
 
-
     /**
      *
      */

@@ -160,7 +160,7 @@ interface Game {
         val playerCards = game.playerCardInfo
             .map {
                 it.map { card ->
-                    card as? Card.Known ?: drawPile.removeLast()
+                    card as? Card.Known ?: draw()
                 }
                     .toMutableList()
             }
@@ -277,11 +277,15 @@ interface Game {
                     cards.sumOf { it.points }
                 }
             val winningScore = scores.min()
-            return (0..<numPlayers)
+            val tiedScores = (0..<numPlayers)
                 .filter {
                     scores[it] == winningScore
-                            && it != cambioCaller
                 }
+            return if(tiedScores.size == 1)
+                tiedScores
+            else
+                tiedScores
+                    .filter { it != cambioCaller }
         }
     }
 }
