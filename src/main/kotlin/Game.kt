@@ -117,10 +117,8 @@ interface Game {
         val playerCardInfo: Array<MutableList<Card.MaybeKnown>> =
             arrayOf(
                 mutableListOf(
-                    Card.Unknown(),
-                    Card.Unknown(),
-                    bottomLeftCard,
-                    bottomRightCard
+                    Card.Unknown(), Card.Unknown(),
+                    bottomLeftCard, bottomRightCard
                 )
             ) + Array(numPlayers - 1) { MutableList(4) { Card.Unknown() } }
 
@@ -159,9 +157,13 @@ interface Game {
         /**
          * The cards that each player has.
          */
-        val playerCards = game.playerCardInfo.map { it.map { card ->
-            card as? Card.Known ?: drawPile.removeLast()
-        }.toMutableList() }
+        val playerCards = game.playerCardInfo
+            .map {
+                it.map { card ->
+                    card as? Card.Known ?: drawPile.removeLast()
+                }
+                    .toMutableList()
+            }
 
         override var drawnCard = game.drawnCard
         override var cambioCaller = game.cambioCaller
@@ -254,6 +256,22 @@ interface Game {
 
             if(!stuck && state.stickable)
                 add(TODO("Generate list of possible sticks. Explain in comment that we don't consider false sticks"))
+        }
+
+        /**
+         * Determines the winners of the game if it were scored right now.
+         */
+        fun winners(): List<Int> {
+            val scores = playerCards
+                .map { cards ->
+                    cards.sumOf { it.points }
+                }
+            val winningScore = scores.min()
+            return (0..numPlayers)
+                .filter {
+                    scores[it] == winningScore
+                            && it != cambioCaller
+                }
         }
     }
 }
