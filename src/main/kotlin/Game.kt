@@ -85,7 +85,7 @@ interface Game {
             JOKER to if (jokers) 2 else 0
         )
             .flatMap { (card, freq) -> List(freq) { card } }
-            .toMutableList()
+            .toMutableList() - bottomLeftCard - bottomRightCard
 
         override val discardPile = mapOf(
             ACE to 0, TWO to 0,
@@ -109,7 +109,8 @@ interface Game {
         /**
          * Size of the draw pile.
          */
-        var drawPileSize = unseenCards.size - 4 * numPlayers
+        // Add 2 back because they were removed from [unseenCards] already
+        var drawPileSize = 2 + unseenCards.size - 4 * numPlayers
 
         /**
          * Information we have on each players' cards. As an example, card 0 of player 3 is `playerCards[3][0].`
@@ -165,7 +166,7 @@ interface Game {
                     .toMutableList()
             }
 
-        override var drawnCard = game.drawnCard
+        override var drawnCard: Card.MaybeKnown = game.drawnCard as? Card.Known ?: draw()
         override var cambioCaller = game.cambioCaller
         override var stuck = game.stuck
         override var state = game.state
@@ -234,7 +235,7 @@ interface Game {
 
                 State.AFTER_DISCARD_FACE -> addAll(
                     // Iterating through all combinations of two players
-                    (1..<numPlayers)
+                    (0..<numPlayers)
                         .flatMap { playerA -> // Select first player
                             ((playerA + 1)..<numPlayers)
                                 .flatMap { playerB -> // Select second player
