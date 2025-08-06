@@ -177,7 +177,7 @@ interface Action {
             return END_OF_TURN
         }
         override fun toString() =
-            "Switch P$playerA #$indexA with P$playerB's #$indexB"
+            "Switch P$playerA's #$indexA with P$playerB's #$indexB"
     }
 
     /**
@@ -348,6 +348,8 @@ interface Action {
 
     /**
      * End the turn. This bars any players from sticking.
+     *
+     * This should be thought of as a formality by the next player, declaring that they are now starting their turn.
      */
     object EndTurn : SameEffects {
         override fun applyUniqueEffects(game: Game): State {

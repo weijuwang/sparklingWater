@@ -8,7 +8,7 @@ object MonteCarloTreeSearch {
         val mcts = Node(player=game.turn)
         repeat(playouts) { mcts.playout(game) }
         return mcts.children
-            .map { (action, child) -> action to child.playouts.toDouble() / playouts }
+            .map { (action, child) -> action to child.winRate() }
             .sortedByDescending { (_, value) -> value }
     }
 
@@ -48,11 +48,13 @@ object MonteCarloTreeSearch {
             private const val EXPLORATION_PARAMETER = 1.414
         }
 
+        fun winRate() = wins / playouts
+
         /**
          * Evaluate the UCT function on this node.
          */
         private fun uct() =
-            wins / playouts + EXPLORATION_PARAMETER * sqrt(
+            winRate() + EXPLORATION_PARAMETER * sqrt(
                 ln(parent!!.playouts.toDouble())
                         / playouts
             )
