@@ -3,41 +3,52 @@ import kotlin.math.*
 /**
  *
  */
-data class MonteCarloNode(
+class MonteCarloNode private constructor(
     /**
      * The player who performed the action that leads to this node.
      */
     val player: Int,
 
     /**
-     *
+     * Number of wins credited for this player on this node
      */
     var wins: Double = 0.0,
 
     /**
-     *
+     * Number of playouts executed on this node
      */
     var playouts: Int = 0,
 
     /**
-     *
+     * Child nodes
      */
-    val children: MutableMap<Action, MonteCarloNode> = mutableMapOf(),
+    private val children: MutableMap<Action, MonteCarloNode> = mutableMapOf(),
 
     /**
-     *
+     * Parent node
      */
-    private val parent: MonteCarloNode? = null
+    val parent: MonteCarloNode? = null
 ) {
+    /**
+     * Initializes a fresh MCTS tree. [player] is automatically initialized as -1 because this node, unlike all child nodes, does not represent an action.
+     */
+    constructor() : this(player=-1)
+
     companion object {
         /**
-         *
+         * The UCT exploration parameter.
          */
         private const val EXPLORATION_PARAMETER = 1.414
     }
 
     /**
-     *
+     * Access a child node. `null` if the child doesn't exist.
+     */
+    operator fun get(action: Action) =
+        children[action]
+
+    /**
+     * Evaluate the UCT function on this node.
      */
     private fun uct() =
         wins/playouts + EXPLORATION_PARAMETER * sqrt(
@@ -109,7 +120,9 @@ data class MonteCarloNode(
     }
 
     /**
-     * Execute one playout, i.e. all four steps of the MCTS process.
+     * Execute one playout, i.e. all four steps of the MCTS process, from [game].
+     *
+     * [game] is not mutated.
      *
      * See documentation on [selectAndExpand] as well as [backpropagate] for more information on those steps.
      */
