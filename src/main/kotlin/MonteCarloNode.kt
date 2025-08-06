@@ -154,4 +154,13 @@ class MonteCarloNode private constructor(
         val winners = determinized.winners()
         expandedNode.backpropagate(winners, 1.0 / winners.size)
     }
+
+    fun print(maxDepth: Int = 2, indent: Int = 0) {
+        repeat(indent) { print(' ') }
+        for ((action, child) in children) {
+            println("${child.wins}/${child.playouts} $action")
+            if(indent < maxDepth)
+                child.print(maxDepth=maxDepth, indent=indent+1)
+        }
+    }
 }
