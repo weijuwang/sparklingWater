@@ -12,7 +12,7 @@ import State.*
  * - Swap out the drawn card: [Swap]
  * - Switch two cards: [BlindSwitch], [BlackKingSwitch]
  * - Peek at a card: [PeekAtOwnCardAs0], [PeekAtOwnCardNotAs0], [PeekAtOtherCardAs0], [PeekAtOtherCardNotAs0]
- * - Sticking: [TrueStick], [TrueStickAndGiveAway], [FalseStickAs0], [FalseStickNotAs0]
+ * - Sticking: [TrueStickSamePlayer], [TrueStickAndGiveAway], [FalseStickAs0], [FalseStickNotAs0]
  * - Call cambio: [Cambio]
  * - Formalities: [EndTurn], [SkipAction]
  *
@@ -99,8 +99,9 @@ interface Action {
      */
     object DrawAs0 : CardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
-            --game.drawPileSize
+            game.decrementDrawPileSize()
             game.drawnCard = cardRevealed
+            game.unseenCards.remove(cardRevealed)
             return AFTER_DRAW
         }
         override fun applyUniqueEffects(game: Game.Determinized): State {
@@ -117,7 +118,7 @@ interface Action {
      */
     object DrawNotAs0 : NonCardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo): State {
-            --game.drawPileSize
+            game.decrementDrawPileSize()
             game.drawnCard = Card.Unknown()
             return AFTER_DRAW
         }
@@ -150,6 +151,7 @@ interface Action {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
             game.drawnCard = cardRevealed
             game.discardPile.add(cardRevealed)
+            game.unseenCards.remove(cardRevealed)
             return cardRevealed.nextStateWhenDiscarded
         }
         override fun applyUniqueEffects(game: Game.Determinized) =
@@ -167,6 +169,7 @@ interface Action {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
             // We found out what the card is but it's getting discarded anyways, so no need to update `playerCards`
             game.discardPile.add(cardRevealed)
+            game.unseenCards.remove(cardRevealed)
             // Update the newly drawn card
             game.playerCardInfo[game.turn][index] = game.drawnCard
             return END_OF_TURN
@@ -213,6 +216,7 @@ interface Action {
     ) : CardRevealing {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
             game.playerCardInfo[0][index] = cardRevealed
+            game.unseenCards.remove(cardRevealed)
             return END_OF_TURN
         }
         override fun applyUniqueEffects(game: Game.Determinized) =
@@ -242,6 +246,7 @@ interface Action {
     ) : CardRevealing, TakesPlayerAndIndex {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
             game.playerCardInfo[player][index] = cardRevealed
+            game.unseenCards.remove(cardRevealed)
 
             return if(game.state == AFTER_DISCARD_BLACK_KING)
                 AFTER_PEEK_BLACK_KING
@@ -281,12 +286,12 @@ interface Action {
         val index: Int
     ) : NonCardRevealing {
         override fun applyUniqueEffects(game: Game.Determinized) =
-            (game.actionHistory.last() as TakesPlayerAndIndex).let {
+            game.lastPeekOtherAction().let {
                 BlindSwitch(it.player, it.index, game.turn, index)
                     .applyUniqueEffects(game)
             }
         override fun applyUniqueEffects(game: Game.PartialInfo) =
-            (game.actionHistory.last() as TakesPlayerAndIndex).let {
+            game.lastPeekOtherAction().let {
                 BlindSwitch(it.player, it.index, game.turn, index)
                     .applyUniqueEffects(game)
             }
@@ -296,15 +301,40 @@ interface Action {
 
     /**
      * Stick a player's own card.
-     * This assumes that the stick is valid; otherwise, use [FalseStick].
+     * This assumes that the stick is valid; otherwise, use [FalseStickAs0] or [FalseStickNotAs0].
      * Use [TrueStickAndGiveAway] for sticking another player's card.
      *
      * This is considered [NonCardRevealing] because, given that the stick is valid, we can always deduce what the card must be.
      */
-    data class TrueStick(
+    data class TrueStickSamePlayer(
         override val player: Int,
         override val index: Int
     ) : NonCardRevealing, TakesPlayerAndIndex {
+        /**
+         * Finds the next state after executing this action.
+         */
+        private fun nextState(game: Game, stickPlayerNumCardsAfterStick: Int): State {
+            if (game.state == AFTER_PEEK_BLACK_KING) {
+                val peekAction = game.lastPeekOtherAction()
+                if (player == peekAction.player) {
+                    // Card peeked got stuck
+                    if (index == peekAction.index) {
+                        // Allow them to select a new card
+                        return AFTER_DISCARD_BLACK_KING
+                    } else if (peekAction.index == stickPlayerNumCardsAfterStick) {
+                        game.actionHistory.add(when(peekAction) {
+                            is PeekAtOtherCardAs0 -> PeekAtOtherCardAs0(player, stickPlayerNumCardsAfterStick - 1)
+                            is PeekAtOtherCardNotAs0 -> PeekAtOtherCardNotAs0(player, stickPlayerNumCardsAfterStick - 1)
+                            else -> TODO("I'm too lazy to do safe type checking here and it's probably too slow anyways")
+                        })
+                    }
+                }
+
+            }
+
+            return game.state
+        }
+
         override fun applyUniqueEffects(game: Game.PartialInfo): State {
             // Remove the stuck card
             game.playerCardInfo[player].removeAt(index)
@@ -313,7 +343,7 @@ interface Action {
             game.discardPile.add(game.discardPile.last())
 
             game.stuck = true
-            return game.state
+            return nextState(game, game.playerCardInfo[player].size)
         }
         override fun applyUniqueEffects(game: Game.Determinized): State {
             game.discardPile.add(
@@ -321,7 +351,7 @@ interface Action {
             )
 
             game.stuck = true
-            return game.state
+            return nextState(game, game.playerCards[player].size)
         }
         override fun toString() =
             "P$player sticks #$index"
@@ -329,8 +359,8 @@ interface Action {
 
     /**
      * Stick a card.
-     * If the player is sticking their own card, use [TrueStick].
-     * If the stick is invalid, use [FalseStick].
+     * If the player is sticking their own card, use [TrueStickSamePlayer].
+     * If the stick is invalid, use [FalseStickAs0] or [FalseStickNotAs0].
      *
      * This is considered [NonCardRevealing] because, given that the stick is valid, we can always deduce what the card must be.
      */
@@ -340,6 +370,36 @@ interface Action {
         val stickPlayer: Int,
         val giveAwayIndex: Int
     ) : NonCardRevealing, TakesPlayerAndIndex {
+        /**
+         * Finds the next state after executing this action.
+         */
+        private fun nextState(game: Game, stickPlayerNumCardsAfterStick: Int): State {
+            if (game.state == AFTER_PEEK_BLACK_KING) {
+                val peekAction = game.lastPeekOtherAction()
+
+                // Card peeked got stuck
+                if (player == peekAction.player && index == peekAction.index)
+                    // Allow them to select a new card
+                    return AFTER_DISCARD_BLACK_KING
+
+                if (stickPlayer == peekAction.player) {
+                    // Card was given away
+                    if (giveAwayIndex == peekAction.index) {
+                        // Allow them to select a new card
+                        return AFTER_DISCARD_BLACK_KING
+                    } else if (peekAction.index == stickPlayerNumCardsAfterStick) {
+                        game.actionHistory.add(when(peekAction) {
+                            is PeekAtOtherCardAs0 -> PeekAtOtherCardAs0(stickPlayer, stickPlayerNumCardsAfterStick - 1)
+                            is PeekAtOtherCardNotAs0 -> PeekAtOtherCardNotAs0(stickPlayer, stickPlayerNumCardsAfterStick - 1)
+                            else -> TODO("I'm too lazy to do safe type checking here and it's probably too slow anyways")
+                        })
+                    }
+                }
+            }
+
+            return game.state
+        }
+
         override fun applyUniqueEffects(game: Game.PartialInfo): State {
             // Remove the stuck card
             game.playerCardInfo[player].removeAt(index)
@@ -354,8 +414,7 @@ interface Action {
 
             // Record that a card was stuck
             game.stuck = true
-
-            return game.state
+            return nextState(game, game.playerCardInfo[stickPlayer].size)
         }
         override fun applyUniqueEffects(game: Game.Determinized): State {
             // Stick the card
@@ -370,8 +429,7 @@ interface Action {
 
             // Record that a card was stuck
             game.stuck = true
-
-            return game.state
+            return nextState(game, game.playerCards[stickPlayer].size)
         }
         override fun toString() =
             "P$stickPlayer sticks P$player #$index; gives away #$giveAwayIndex"
@@ -380,7 +438,7 @@ interface Action {
     /**
      * An invalid stick from player 0.
      * See [FalseStickNotAs0].
-     * Use [TrueStick] and [TrueStickAndGiveAway] for valid sticks.
+     * Use [TrueStickSamePlayer] and [TrueStickAndGiveAway] for valid sticks.
      */
     data class FalseStickAs0(
         override val player: Int,
@@ -388,6 +446,8 @@ interface Action {
     ) : CardRevealing, TakesPlayerAndIndex {
         override fun applyUniqueEffects(game: Game.PartialInfo, cardRevealed: Card.Known): State {
             game.playerCardInfo[0].add(cardRevealed)
+            game.unseenCards.remove(cardRevealed)
+            game.decrementDrawPileSize()
             return game.state
         }
         override fun applyUniqueEffects(game: Game.Determinized) =
@@ -399,7 +459,7 @@ interface Action {
     /**
      * An invalid stick not from player 0.
      * See [FalseStickAs0].
-     * Use [TrueStick] and [TrueStickAndGiveAway] for valid sticks.
+     * Use [TrueStickSamePlayer] and [TrueStickAndGiveAway] for valid sticks.
      *
      * TODO What can we do with this information? Right now this would tell us what the card isn't but we can't store that
      */
@@ -408,8 +468,11 @@ interface Action {
         override val index: Int,
         val stickPlayer: Int
     ) : NonCardRevealing, TakesPlayerAndIndex {
-        override fun applyUniqueEffects(game: Game.PartialInfo) =
-            game.state
+        override fun applyUniqueEffects(game: Game.PartialInfo): State {
+            game.playerCardInfo[stickPlayer].add(Card.Unknown())
+            game.decrementDrawPileSize()
+            return game.state
+        }
         override fun applyUniqueEffects(game: Game.Determinized): State {
             game.playerCards[stickPlayer].add(game.draw())
             return game.state

@@ -1,8 +1,7 @@
+import Action.*
 import Card.Known.*
 
 /**
- * TODO Reset draw pile when empty
- *
  * Represents the state of a Cambio game.
  */
 interface Game {
@@ -57,6 +56,14 @@ interface Game {
     }
 
     /**
+     * The last [Action] that is either [PeekAtOtherCardAs0] or [PeekAtOtherCardNotAs0].
+     */
+    fun lastPeekOtherAction() =
+        actionHistory.last {
+            it is PeekAtOtherCardAs0 || it is PeekAtOtherCardNotAs0
+        } as TakesPlayerAndIndex
+
+    /**
      * A game from player 0's perspective. Cards unknown to that player are represented as [Card.Unknown].
      *
      * @param numPlayers The number of players in the game.
@@ -78,14 +85,15 @@ interface Game {
          * Face-down cards whose values are unknown to us. This includes all cards in the draw pile and any players'
          * cards we haven't seen. Once we see a card, it is moved to [playerCardInfo].
          */
-        val unseenCards = mapOf(
+        val unseenCards: MutableList<Card.Known> = (mapOf(
             ACE to 4, TWO to 4, THREE to 4, FOUR to 4, FIVE to 4,
             SIX to 4, SEVEN to 4, EIGHT to 4, NINE to 4, TEN to 4,
             JACK to 4, QUEEN to 4, BLACK_KING to 2, RED_KING to 2,
             JOKER to if (jokers) 2 else 0
         )
-            .flatMap { (card, freq) -> List(freq) { card } }
-            .toMutableList() - bottomLeftCard - bottomRightCard
+            .flatMap { (card, freq) -> List(freq) { card } } - bottomLeftCard - bottomRightCard
+                )
+            .toMutableList()
 
         override val discardPile = mapOf(
             ACE to 0, TWO to 0,
@@ -111,6 +119,7 @@ interface Game {
          */
         // Add 2 back because they were removed from [unseenCards] already
         var drawPileSize = 2 + unseenCards.size - 4 * numPlayers
+            private set
 
         /**
          * Information we have on each players' cards. As an example, card 0 of player 3 is `playerCards[3][0].`
@@ -128,6 +137,15 @@ interface Game {
         override var stuck = false
         override var state = State.BEGINNING_OF_TURN
         override val actionHistory = mutableListOf<Action>()
+
+        fun decrementDrawPileSize() {
+            --drawPileSize
+            if (drawPileSize <= 0) {
+                unseenCards.addAll(discardPile)
+                drawPileSize = discardPile.size
+                discardPile.clear()
+            }
+        }
     }
 
     /**
@@ -177,7 +195,14 @@ interface Game {
         /**
          * Draws a card from the draw pile, assuming it has already been shuffled.
          */
-        fun draw() = drawPile.removeLast()
+        fun draw(): Card.Known {
+            val drawnCard = drawPile.removeLast()
+            if(drawPile.isEmpty()) {
+                drawPile.addAll(discardPile)
+                discardPile.clear()
+            }
+            return drawnCard
+        }
 
         /**
          * Returns all legal actions.
@@ -186,27 +211,17 @@ interface Game {
             when(state) {
 
                 State.BEGINNING_OF_TURN -> {
-                    add(
-                        if (turn == 0)
-                            Action.DrawAs0
-                        else
-                            Action.DrawNotAs0
-                    )
+                    add(if (turn == 0) DrawAs0 else DrawNotAs0)
                     if (cambioCaller == null)
-                        add(Action.Cambio)
+                        add(Cambio)
                 }
 
                 State.AFTER_DRAW -> {
-                    add(
-                        if (turn == 0)
-                            Action.DiscardAs0
-                        else
-                            Action.DiscardNotAs0
-                    )
+                    add(if (turn == 0) DiscardAs0 else DiscardNotAs0)
 
                     addAll(
                         playerCards[turn].indices
-                            .map { Action.Swap(it) }
+                            .map { Swap(it) }
                     )
                 }
 
@@ -214,9 +229,9 @@ interface Game {
                     playerCards[turn].indices
                         .map {
                             if (turn == 0)
-                                Action.PeekAtOwnCardAs0(it)
+                                PeekAtOwnCardAs0(it)
                             else
-                                Action.PeekAtOwnCardNotAs0(it)
+                                PeekAtOwnCardNotAs0(it)
                         }
                 )
 
@@ -226,9 +241,9 @@ interface Game {
                             playerCards[player].indices
                                 .map {
                                     if (turn == 0)
-                                        Action.PeekAtOtherCardAs0(player, it)
+                                        PeekAtOtherCardAs0(player, it)
                                     else
-                                        Action.PeekAtOtherCardNotAs0(player, it)
+                                        PeekAtOtherCardNotAs0(player, it)
                                 }
                         }
                 )
@@ -243,7 +258,7 @@ interface Game {
                                         .flatMap { indexA -> // Select first player's card
                                             playerCards[playerB].indices
                                                 .map { indexB -> // Select second player's card
-                                                    Action.BlindSwitch(playerA, indexA, playerB, indexB)
+                                                    BlindSwitch(playerA, indexA, playerB, indexB)
                                                 }
                                         }
                                 }
@@ -252,19 +267,64 @@ interface Game {
 
                 State.AFTER_PEEK_BLACK_KING -> addAll(
                     playerCards[turn].indices
-                        .map { Action.BlackKingSwitch(it) }
+                        .map { BlackKingSwitch(it) }
                 )
 
-                State.END_OF_TURN -> add(Action.EndTurn)
+                State.END_OF_TURN -> add(EndTurn)
 
                 State.END_OF_GAME -> return@buildSet
             }
 
             if(state.optional)
-                add(Action.SkipAction)
+                add(SkipAction)
 
-            if(!stuck && state.stickable)
-                add(TODO("Generate list of possible sticks. Explain in comment that we don't consider false sticks"))
+            if(state.stickable && !stuck)
+                addAll(
+                    playerCards.flatMapIndexed { player, cards ->
+                        cards.flatMapIndexed { index, card ->
+                            if(card == discardPile.lastOrNull()) {
+                                /* True sticks */
+                                (0..<numPlayers)
+                                    .flatMap { stickPlayer ->
+                                        if (stickPlayer == player) {
+                                            listOf(TrueStickSamePlayer(player, index))
+                                        } else {
+                                            playerCards[stickPlayer].indices.map {
+                                                TrueStickAndGiveAway(player, index, stickPlayer, it)
+                                            }
+                                        }
+                                    }
+                            } else {
+                                /* False sticks */
+
+                                /*
+                                TODO Consider false sticks?
+
+                                Currently we do not consider false sticks in MCTS because it dramatically increases the
+                                branching factor, yet false sticks are rarely beneficial because your score almost
+                                always increases. One player I know false-sticks both of their top cards at the beginning
+                                of the game so they know what cards they have, but I'm not sure it's a good strategy.
+
+                                Another reason is that with so many false sticks flooding the search tree, it is likely
+                                that the MCTS simulation phase will go down a path where one player does dozens of sticks
+                                in a row, draining the draw pile and eventually the discard pile. This loophole is not
+                                explicitly covered in any Cambio rulebook I have find but my guess is that the game
+                                should end immediately because there are no more legal moves except for calling Cambio,
+                                and after that there will be no more legal moves -- not even sticks because there is no
+                                way to discard cards. Therefore we may as well have ended the game as soon as the draw
+                                pile and discard pile are emptied.
+                                 */
+                                return@flatMapIndexed listOf()
+
+                                // False sticks by 0
+                                listOf(FalseStickAs0(player, index)) +
+
+                                // TODO False sticks not by 0
+                                listOf()
+                            }
+                        }
+                    }
+                )
         }
 
         /**

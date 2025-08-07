@@ -90,7 +90,7 @@ object MonteCarloTreeSearch {
             // Create the node
             children[expandedAction] = Node(
                 player = when (expandedAction) {
-                    is Action.TrueStick, is Action.FalseStickAs0 -> expandedAction.player
+                    is Action.TrueStickSamePlayer, is Action.FalseStickAs0 -> expandedAction.player
                     is Action.TrueStickAndGiveAway -> expandedAction.stickPlayer
                     is Action.FalseStickNotAs0 -> expandedAction.stickPlayer
                     else -> determinized.turn
@@ -146,11 +146,11 @@ object MonteCarloTreeSearch {
             Execute random legal actions
              */
             // TODO What if the game never ends (i.e. no one calls Cambio)?
-            // TODO Probability of stick and cambio call need to be accounted for
-            while (determinized.state != State.END_OF_GAME)
+            while (determinized.state != State.END_OF_GAME) {
                 determinized.legalActions()
                     .random()
                     .execute(determinized)
+            }
 
             /*
             STEP 4: BACKPROPAGATION
@@ -162,13 +162,13 @@ object MonteCarloTreeSearch {
         /**
          * TODO fix
          */
-        fun print(maxDepth: Int = 2, indent: Int = 0) {
+        fun println(maxDepth: Int = 2, indent: Int = 0) {
             repeat(indent) { print(' ') }
             for ((action, child) in children) {
                 println("${child.wins}/${child.playouts} $action")
                 continue
                 if (indent < maxDepth)
-                    child.print(maxDepth = maxDepth, indent = indent + 1)
+                    child.println(maxDepth = maxDepth, indent = indent + 1)
             }
         }
     }
